@@ -1,0 +1,440 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CUSTOMER
+  SUPPLIER
+  ADMIN
+}
+
+enum SupplierStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum Unit {
+  TON
+  M3
+  BAG
+  PIECE
+}
+
+enum OrderStatus {
+  PLACED
+  ACCEPTED
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  PREPAID
+  UPI
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_STATUS_CHANGED
+  PAYMENT_FAILED
+  PAYMENT_SUCCESS
+  GENERIC
+}
+
+enum NotificationChannel {
+  IN_APP
+  SMS
+  PUSH
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+  IN_SERVICE
+}
+
+enum VehicleType {
+  TIPPER
+  TRANSIT_MIXER
+  FLATBED
+  TRACTOR
+  OTHER
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrderSlaStatus {
+  NOT_APPLICABLE
+  ON_TIME
+  LATE
+}
+
+enum DiscountType {
+  FLAT
+  PERCENTAGE
+}
+
+model Coupon {
+  id                String        @id @default(cuid())
+  code              String        @unique
+  discountType      DiscountType
+  value             Float
+  minOrderValue     Float
+  maxDiscountAmount Float?
+  isActive          Boolean       @default(true)
+  expiryDate        DateTime
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  orders            Order[]
+}
+
+model City {
+  id        Int       @id @default(autoincrement())
+  name      String
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  suppliers Supplier[]
+  sites     CustomerSite[]
+  products  Product[]
+  orders    Order[]
+  supplierPlants SupplierPlant[]
+  vehicles Vehicle[]
+  drivers  Driver[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  phone        String?   @unique
+  email        String?   @unique
+  passwordHash String?
+  role         UserRole
+  fullName     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  customer Customer?
+  supplier Supplier?
+  admin    Admin?
+  notifications Notification[]
+}
+
+model Customer {
+  id        String        @id @default(cuid())
+  userId    String        @unique
+  companyName String?
+  gstNumber String?
+
+  user  User   @relation(fields: [userId], references: [id])
+  sites CustomerSite[]
+  orders Order[]
+  ratings OrderRating[]
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  roleName  String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Supplier {
+  id           String          @id @default(cuid())
+  userId       String          @unique
+  companyName  String
+  gstNumber    String?
+  cityId       Int
+  address      String
+  status       SupplierStatus
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user    User   @relation(fields: [userId], references: [id])
+  city    City   @relation(fields: [cityId], references: [id])
+  plants  SupplierPlant[]
+  products Product[]
+  orders  Order[]
+  vehicles Vehicle[]
+  drivers  Driver[]
+  ratings OrderRating[]
+  slotConfigs SupplierSlotConfig[]
+}
+
+model SupplierSlotConfig {
+  id              String   @id @default(cuid())
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  supplierId      String
+
+  label           String
+  maxOrdersPerDay Int
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([supplierId, label])
+}
+
+model SupplierPlant {
+  id          String   @id @default(cuid())
+  supplierId  String
+  cityId      Int
+  name        String
+  address     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  city     City     @relation(fields: [cityId], references: [id])
+}
+
+model CustomerSite {
+  id           String    @id @default(cuid())
+  customerId   String
+  cityId       Int
+  label        String
+  addressLine  String
+  pincode      String
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  city     City     @relation(fields: [cityId], references: [id])
+  orders   Order[]
+}
+
+model ProductCategory {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?
+
+  products Product[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  supplierId    String
+  categoryId    Int
+  name          String
+  unit          Unit
+  basePrice     Decimal  @db.Decimal(12, 2)
+  minOrderQty   Float
+  leadTimeHours Int
+  imageUrl      String?
+  attributes    Json?
+  bulkTiers     Json?
+  deliveryCharge Float   @default(0)
+  cityId        Int
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  category ProductCategory @relation(fields: [categoryId], references: [id])
+  city     City     @relation(fields: [cityId], references: [id])
+  orderItems OrderItem[]
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  orderCode     String        @unique
+  customerId    String
+  siteId        String
+  supplierId    String
+  cityId        Int
+  status        OrderStatus   @default(PLACED)
+  scheduledSlot String
+  scheduledDate DateTime?
+  slotLabel     String?
+  acceptedAt    DateTime?
+  dispatchedAt  DateTime?
+  deliveredAt   DateTime?
+  cancelledAt   DateTime?
+  slaStatus     OrderSlaStatus @default(NOT_APPLICABLE)
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  deliveryFee   Decimal       @db.Decimal(12, 2)
+  taxAmount     Decimal       @db.Decimal(12, 2)
+  couponCode    String?
+  discountAmount Float        @default(0)
+  paymentMethod PaymentMethod @default(COD)
+  paymentStatus PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  site     CustomerSite @relation(fields: [siteId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  city     City     @relation(fields: [cityId], references: [id])
+  items    OrderItem[]
+  rating   OrderRating?
+  payment  Payment?
+  notifications Notification[]
+  trackingPoints OrderTrackingPoint[]
+  coupon   Coupon?  @relation(fields: [couponCode], references: [code])
+}
+
+model OrderTrackingPoint {
+  id        String   @id @default(cuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+
+  latitude  Float
+  longitude Float
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+
+  user      User                @relation(fields: [userId], references: [id])
+  userId    String
+  role      UserRole?
+
+  type      NotificationType
+  channel   NotificationChannel @default(IN_APP)
+
+  title     String
+  body      String
+  data      Json?
+
+  status    NotificationStatus  @default(SENT)
+
+  order     Order?              @relation(fields: [orderId], references: [id])
+  orderId   String?
+
+  createdAt DateTime            @default(now())
+  readAt    DateTime?
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Float
+  unitPrice  Decimal @db.Decimal(12, 2)
+  totalPrice Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  order             Order         @relation(fields: [orderId], references: [id])
+  orderId           String        @unique
+
+  provider          String
+  providerOrderId   String?
+  providerPaymentId String?
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("INR")
+
+  status            PaymentStatus
+  upiDeepLink       String?
+  upiVirtualAddress String?
+  rawResponse       Json?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model Vehicle {
+  id                 String        @id @default(cuid())
+  supplier           Supplier      @relation(fields: [supplierId], references: [id])
+  supplierId         String
+
+  registrationNumber String        @unique
+  type               VehicleType
+  capacityTons       Float
+  city               City          @relation(fields: [cityId], references: [id])
+  cityId             Int
+
+  status             VehicleStatus @default(ACTIVE)
+  assignedDriver     Driver?       @relation("VehicleAssignedDriver", fields: [assignedDriverId], references: [id])
+  assignedDriverId   String? @unique
+  driverAssignment   Driver?       @relation("DriverAssignedVehicle")
+
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model Driver {
+  id                String       @id @default(cuid())
+  supplier          Supplier     @relation(fields: [supplierId], references: [id])
+  supplierId        String
+
+  name              String
+  phone             String
+  city              City         @relation(fields: [cityId], references: [id])
+  cityId            Int
+
+  licenseNumber     String       @unique
+  status            DriverStatus @default(ACTIVE)
+
+  assignedVehicle   Vehicle?     @relation("DriverAssignedVehicle", fields: [assignedVehicleId], references: [id])
+  assignedVehicleId String? @unique
+  vehicleAssignment Vehicle?     @relation("VehicleAssignedDriver")
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model OrderRating {
+  id         String   @id @default(cuid())
+  order      Order    @relation(fields: [orderId], references: [id])
+  orderId    String   @unique
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String
+
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  supplierId String
+
+  rating     Int
+  comment    String?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
