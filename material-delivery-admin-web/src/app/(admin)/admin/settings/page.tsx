@@ -20,7 +20,7 @@ export default function AdminSettingsPage() {
             Commission rules
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Define slabs, payment terms, and penalties. (Static placeholder for now.)
+            Define slabs, payment terms, and penalties for each supplier and city.
           </Typography>
         </CardContent>
       </Card>

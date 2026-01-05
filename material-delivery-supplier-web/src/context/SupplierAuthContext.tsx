@@ -21,7 +21,6 @@ type AuthState = {
 
 const TOKEN_KEY = 'supplier_token';
 const USER_KEY = 'supplier_user';
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_SUPPLIER_AUTH_BYPASS === 'true';
 
 const SupplierAuthContext = createContext<AuthState | undefined>(undefined);
 
@@ -42,24 +41,6 @@ export function SupplierAuthProvider({children}: {children: React.ReactNode}) {
         setUser(JSON.parse(storedUser));
       } catch {
         setUser(null);
-      }
-    }
-    // Allow bypassing login for demos/dev when configured via env.
-    if (!storedToken && BYPASS_AUTH) {
-      const demoUser: SupplierUser = {
-        id: 'demo-supplier',
-        role: 'SUPPLIER',
-        email: 'demo@supplier.local',
-        fullName: 'Demo Supplier',
-      };
-      const demoToken = 'bypass-token';
-      setToken(demoToken);
-      setUser(demoUser);
-      // Do not attach auth header to avoid backend 401s when bypassing.
-      setAuthToken(null);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(TOKEN_KEY, demoToken);
-        localStorage.setItem(USER_KEY, JSON.stringify(demoUser));
       }
     }
     setLoading(false);

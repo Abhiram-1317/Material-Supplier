@@ -30,8 +30,10 @@ export default function CustomersPage() {
           </TableHead>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={5}>
-                Placeholder — will show real customers once connected to data.
+              <TableCell colSpan={5} align="center">
+                <Typography variant="body2" color="text.secondary">
+                  No customers found.
+                </Typography>
               </TableCell>
             </TableRow>
           </TableBody>
