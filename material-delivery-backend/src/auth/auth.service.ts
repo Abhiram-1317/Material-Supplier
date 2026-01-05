@@ -67,28 +67,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const bypassEnabled = this.config.get<string>('DEMO_SUPPLIER_AUTH_BYPASS') === 'true';
-    const bypassEmail = this.config.get<string>('DEMO_SUPPLIER_EMAIL') ?? 'supplier@test.com';
-    const bypassPassword = this.config.get<string>('DEMO_SUPPLIER_PASSWORD') ?? 'password123';
-
-    try {
-      const user = await this.validateUserByEmail(dto.email, dto.password);
-      const payload = this.buildJwtPayload(user);
-      const accessToken = await this.jwtService.signAsync(payload);
-      return { accessToken, user };
-    } catch (err) {
-      if (bypassEnabled && dto.email === bypassEmail && dto.password === bypassPassword) {
-        const demoUser = {
-          id: this.config.get<string>('DEMO_SUPPLIER_USER_ID') ?? 'demo-supplier',
-          role: UserRole.SUPPLIER,
-          email: bypassEmail,
-        };
-        const payload = this.buildJwtPayload(demoUser);
-        const accessToken = await this.jwtService.signAsync(payload);
-        return { accessToken, user: demoUser };
-      }
-      throw err;
-    }
+    const user = await this.validateUserByEmail(dto.email, dto.password);
+    const payload = this.buildJwtPayload(user);
+    const accessToken = await this.jwtService.signAsync(payload);
+    return {accessToken, user};
   }
 
   async requestCustomerOtp(dto: RequestOtpDto) {
