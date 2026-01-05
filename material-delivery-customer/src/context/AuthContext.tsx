@@ -27,10 +27,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         if (stored) {
           setToken(stored);
           setAuthToken(stored);
-        } else if (process.env.EXPO_PUBLIC_DEV_TOKEN) {
-          const fallback = process.env.EXPO_PUBLIC_DEV_TOKEN;
-          setToken(fallback);
-          setAuthToken(fallback);
         }
       } finally {
         if (isMounted) setLoading(false);

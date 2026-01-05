@@ -7,7 +7,7 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import {type AuthUser} from "@/api/auth";
+import {requestOtp as apiRequestOtp, verifyOtp as apiVerifyOtp, type AuthUser} from "@/api/auth";
 import {setAuthToken} from "@/lib/api";
 
 type AuthState = {
@@ -28,20 +28,31 @@ const TOKEN_KEY = "customer_token";
 const USER_KEY = "customer_user";
 const LAST_PHONE_KEY = "customer_last_phone";
 
-const demoUser: AuthUser = {
-  id: "demo-user",
-  role: "CUSTOMER",
-  phone: "+911234567890",
-  fullName: "Demo User",
-};
-const demoToken = "demo-token";
-
 export function AuthProvider({children}: {children: ReactNode}) {
-  const [user, setUser] = useState<AuthUser | null>(() => demoUser);
-  const [token, setToken] = useState<string | null>(() => demoToken);
-  const loading = false;
-  const requestingOtp = false;
-  const verifyingOtp = false;
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  // Hydrate from storage on load.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+    const storedUser = localStorage.getItem(USER_KEY);
+    if (storedToken) {
+      setToken(storedToken);
+      setAuthToken(storedToken);
+    }
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     setAuthToken(token);
@@ -61,16 +72,31 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }, [token, user]);
 
   const requestOtp = async (phone: string) => {
-    // no-op in bypass mode
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(LAST_PHONE_KEY, phone);
+    setRequestingOtp(true);
+    try {
+      await apiRequestOtp(phone);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(LAST_PHONE_KEY, phone);
+      }
+    } finally {
+      setRequestingOtp(false);
     }
   };
 
-  const verifyOtpAndLogin = async (_phone: string, _otp: string) => {
-    void _phone;
-    void _otp;
-    // no-op in bypass mode
+  const verifyOtpAndLogin = async (phone: string, otp: string) => {
+    setVerifyingOtp(true);
+    try {
+      const {accessToken, user: authedUser} = await apiVerifyOtp(phone, otp);
+      setToken(accessToken);
+      setUser(authedUser);
+      setAuthToken(accessToken);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(TOKEN_KEY, accessToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(authedUser));
+      }
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   const logout = async () => {
