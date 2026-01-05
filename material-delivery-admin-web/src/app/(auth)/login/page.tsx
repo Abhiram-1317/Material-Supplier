@@ -1,7 +1,7 @@
 "use client";
 
 import {useRouter} from 'next/navigation';
-import {FormEvent, useState} from 'react';
+import {FormEvent, useEffect, useState} from 'react';
 import {
   Box,
   Button,
@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import {api, setAuthToken} from '@/lib/api';
+import {api, decodeToken, setAuthToken} from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +20,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If a token exists but is not admin, force logout.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = window.localStorage.getItem('admin_token');
+    if (!token) return;
+    const payload = decodeToken(token);
+    if (payload?.role !== 'ADMIN') {
+      window.localStorage.removeItem('admin_token');
+    } else {
+      setAuthToken(token);
+    }
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,6 +47,11 @@ export default function LoginPage() {
         throw new Error('Missing token');
       }
 
+      const payload = decodeToken(token);
+      if (payload?.role !== 'ADMIN') {
+        throw new Error('Unauthorized role');
+      }
+
       // Persist token and set default auth header for subsequent requests.
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('admin_token', token);
@@ -42,7 +60,7 @@ export default function LoginPage() {
       router.push('/admin/dashboard');
     } catch (err) {
       console.error('Login failed', err);
-      setError('Invalid email or password');
+      setError('Invalid credentials or unauthorized role');
     } finally {
       setLoading(false);
     }

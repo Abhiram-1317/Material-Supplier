@@ -14,3 +14,14 @@ export function setAuthToken(token?: string) {
     delete api.defaults.headers.common.Authorization;
   }
 }
+
+// Helper to inspect token payload (best-effort) for role checks on the client.
+export function decodeToken(token?: string): any | null {
+  if (!token) return null;
+  try {
+    const [, payload] = token.split('.');
+    return JSON.parse(Buffer.from(payload, 'base64').toString());
+  } catch {
+    return null;
+  }
+}

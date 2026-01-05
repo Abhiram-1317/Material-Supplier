@@ -51,7 +51,8 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         email,
-        role: { in: [UserRole.SUPPLIER, UserRole.ADMIN] },
+        // Only admins can log in via this flow; remove supplier access for security.
+        role: UserRole.ADMIN,
       },
     });
     if (!user || !user.passwordHash) {
